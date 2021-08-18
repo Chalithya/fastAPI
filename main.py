@@ -1,6 +1,7 @@
-from fastapi import FastAPI
+from typing import Optional
+from fastapi import FastAPI, Query
 from enum import Enum
-
+from pydantic import BaseModel
 
 
 
@@ -55,3 +56,40 @@ async def get_vikings(viking_name: ModelVikings):
 @app.get("/files/{file_path:path}")
 async def read_file(file_path: str):
     return {"file_path": file_path}
+
+
+#------- Query Parameters -------------------------------------
+
+items_db = [{"item_name": "Foo"}, {"item_name": "Bar"}, {"item_name": "Baz"}]
+
+@app.get("/item/")
+async def read_item(skip: int = 0, limit: int = 10):
+    return items_db[skip: skip + limit]
+
+
+@app.get("/items/{item_id}")
+async def read_item(item_id: str, q: Optional[str] = Query(None, min_length=2, max_length=10)):
+    if q:
+        return {"item_id": item_id, "q:": q}
+    
+    return {"item_id": item_id}
+
+
+#-------------------------Data Model-----------------------------
+
+class Item_model(BaseModel):
+    name: str
+    price: float
+    tax: Optional[float] = None
+
+
+
+@app.put("/model/{item_id}")
+async def create_model(item_id: str, item_model: Item_model):
+    item_dict = item_model.dict()
+    if item_model.tax:
+        price_with_tax = item_model.price + item_model.tax
+        item_dict.update({"price_with_tax": price_with_tax})
+
+
+    return {"item_id": item_id, **item_dict}
