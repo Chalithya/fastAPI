@@ -1,6 +1,7 @@
 from typing import Optional
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Body
 from enum import Enum
+from fastapi.param_functions import Body, Path
 from pydantic import BaseModel
 
 
@@ -91,5 +92,78 @@ async def create_model(item_id: str, item_model: Item_model):
         price_with_tax = item_model.price + item_model.tax
         item_dict.update({"price_with_tax": price_with_tax})
 
-
     return {"item_id": item_id, **item_dict}
+
+
+    #---------------- String validation ----------------------
+""" 
+Regex -> In regex it cheks the input is according to the format '^' the starting point '$' denotes ending point
+alias -> can be used to declasre variables which are not valid in python
+depricate -> is used to tell that try not to use this
+"""
+
+
+
+@app.get("/item1/")
+async def read_items(
+    q: Optional[str] = Query(
+        None,
+        alias="item-query",
+        title="q string",
+        description="Description of q",
+        min_length=3,
+        max_length=50,
+        regex="^fixedquery$",
+        deprecated=True,
+    )
+):
+    results = {"items": [{"item_id": "Foo"}, {"item_id": "Bar"}]}
+    if q:
+        results.update({"q": q})
+    return results
+
+
+
+#------------------------------Path parameter -------------------------------------
+
+@app.get("/item2/{item_id}")
+async def read_items(
+    q: str,
+    item_id: int = Path(..., title="Id of the item id", ge=1, le=9999999)
+):
+    results = {"item_id": item_id}
+    if q:
+        results.update({"q": q})
+    
+    return results
+
+"""-------------------------This part is related to body-------------------------------"""
+#--------------------------- Body Multiple parameter -------------------------------
+
+class Item(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    tax: Optional[float] = None
+
+
+
+class User(BaseModel):
+    username: str
+    full_name: Optional[str] = None
+
+
+
+@app.put("/item3/{item_id}")
+async def update_item(item_id: int, item: Item, user: User):
+    results3 = {"item_id": item_id, "item": item, "user": user}
+    return results3
+
+
+
+@app.put("/item4/{tiem_id}")
+async def update_item(item_id: int, item: Item, user: User, importance: int = Body(..., embed=True)):
+    results = {"item_id": item_id, "item": item, "user": user, "importance": importance}
+    return results
+
+
