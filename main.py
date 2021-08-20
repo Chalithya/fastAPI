@@ -1,8 +1,10 @@
-from typing import Optional, List
-from fastapi import FastAPI, Query, Body, Header
+from typing import Optional, List, Union
+from fastapi import FastAPI, Query, Body, Header, status, File, UploadFile, Form
 from enum import Enum
 from fastapi.param_functions import Body, Path
 from pydantic import BaseModel, Field
+from fastapi.responses import HTMLResponse
+
 
 
 
@@ -248,7 +250,7 @@ async def create_user(user: UserIn):
 
 
 
-#---------------- Excluyde default model --------------------------
+#---------------- Exclude default model --------------------------
 
 class Item7(BaseModel):
     name: str
@@ -265,6 +267,121 @@ items7 = {
 }
 
 
+
+""" Can use both response_model_include and response_model_exclude """
+
 @app.get("/item7/{item7_id}", response_model=Item7, response_model_exclude_unset=True)
 async def read_item(item7_id: str):
     return items7[item7_id]
+
+
+
+#---------------- Extra model --------------------------
+
+
+# user_in = UserIn(username="john", password="secret", email="john.doe@example.com")
+# user_dict = user_in.dict()
+# print(user_dict)
+
+
+class BaseItem(BaseModel):
+    description: str
+    type: str
+
+
+class CarItem(BaseItem):
+    type = "car"
+
+
+class PlaneItem(BaseItem):
+    type = "plane"
+    size: int
+
+
+items8 = {
+    "item1": {"description": "All my friends drive a low rider", "type": "car"},
+    "item2": {
+        "description": "Music is my aeroplane, it's my aeroplane",
+        "type": "plane",
+        "size": 5,
+    },
+}
+
+
+# @app.get("/items8/{item_id}", response_model = Union[PlaneItem, CarItem])
+# async def read_item(item_id: str):
+#     return items8[item_id]
+
+class Item8(BaseModel):
+    name: str
+    description: str
+
+
+items8 = [
+    {"name": "Foo", "description": "There comes my hero"},
+    {"name": "Red", "description": "It's my aeroplane"},
+]
+
+@app.get("/items8/", response_model=List[Item8], status_code=status.HTTP_201_CREATED)
+async def read_items():
+    return items8
+
+
+
+#---------------- Request Files --------------------------
+
+
+# @app.post("/files/")
+# async def create_file(file: bytes = File(...)):
+#     return {"file_size": len(file)}
+
+"""
+This is the best way for larger files and also usefull as we can get metadata from the file using this method
+"""
+# @app.post("/uploadfile/")
+# async def create_upload_file(file: UploadFile = File(...)):
+#     return {"filename": file.filename}
+
+"""
+We can use lists of files to upload
+"""
+
+@app.post("/filesu/")
+async def create_file(file: List[bytes] = File(...)):
+    return {"file_size": len(file)}
+
+@app.post("/uploadfilesu/")
+async def create_upload_file(file: List[UploadFile] = File(...)):
+    return {"filename": file.filename}
+
+
+
+@app.get("/filehome/")
+async def main():
+    content = """
+<body>
+<form action="/filesu/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+<form action="/uploadfilesu/" enctype="multipart/form-data" method="post">
+<input name="files" type="file" multiple>
+<input type="submit">
+</form>
+</body>
+    """
+    return HTMLResponse(content=content)
+
+
+
+#---------------- Request Files --------------------------
+
+@app.post("/fileup/")
+async def create_file(
+    file: bytes = File(...), fileb: UploadFile = File(...), token: str = Form(...)
+):
+    return {
+        "filea_size": len(file),
+        "token": token,
+        "fileb_content_type": fileb.content_type,
+    }
