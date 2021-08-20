@@ -1,8 +1,8 @@
-from typing import Optional
-from fastapi import FastAPI, Query, Body
+from typing import Optional, List
+from fastapi import FastAPI, Query, Body, Header
 from enum import Enum
 from fastapi.param_functions import Body, Path
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 
@@ -161,9 +161,110 @@ async def update_item(item_id: int, item: Item, user: User):
 
 
 
-@app.put("/item4/{tiem_id}")
+@app.put("/item4/{item_id}")
 async def update_item(item_id: int, item: Item, user: User, importance: int = Body(..., embed=True)):
     results = {"item_id": item_id, "item": item, "user": user, "importance": importance}
     return results
 
 
+#--------------------------- Body Fields -------------------------------
+
+class Itemnew(BaseModel):
+    name: str
+    description: Optional[str] = Field(None, title="The description of the item", max_length=300, min_length=1 )
+    price: float = Field(..., gt=0, description="The price must be greater than zero")
+    tax: Optional[float] = None
+
+    
+
+
+
+@app.put("/item5/{item_id}")
+async def update_item5(item_id: int, itemnew: Itemnew = Body(..., embed=True)):
+    results5 = {"item_id": item_id, "item": itemnew}
+    return results5
+
+
+
+#--------------------------- Example Data  -------------------------------
+class Item5(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    tax: Optional[float] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Foo",
+                "description": "A very nice Item",
+                "price": 35.4,
+                "tax": 3.2,
+            }
+        }
+
+
+
+class Item5_1(BaseModel):
+    name: str = Field(..., example="Foo")
+    description: Optional[str] = Field(None, example="A very nice Item")
+    price: float = Field(..., example=35.4)
+    tax: Optional[float] = Field(None, example=3.2)
+
+
+
+@app.put("/items5_1/{item5_id}")
+async def update_item(item5_id: int, item5: Item5):
+    results = {"item5_id": item5_id, "item5": item5}
+    return results
+
+
+
+#--------------------------- Path operation configeration - Header  -------------------------------
+
+@app.get("/item6/")
+async def read_items(x_token: Optional[List[str]] = Header(None)):
+    return {"X-Token values": x_token}
+
+
+
+#--------------------------- Response Model  -------------------------------
+
+class UserIn(BaseModel):
+    username: str
+    password: str
+    full_name: Optional[str] = None
+
+
+
+class UserOut(BaseModel):
+    username: str
+    full_name: Optional[str] = None
+
+
+@app.post("/newuser/", response_model=UserOut)
+async def create_user(user: UserIn):
+    return user
+
+
+
+#---------------- Excluyde default model --------------------------
+
+class Item7(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    tax: float = 10.5
+    tags: List[str] = []
+
+
+items7 = {
+    "foo": {"name": "Foo", "price": 50.2},
+    "bar": {"name": "Bar", "description": "The bartenders", "price": 62, "tax": 20.2},
+    "baz": {"name": "Baz", "description": None, "price": 50.2, "tax": 10.5, "tags": []},
+}
+
+
+@app.get("/item7/{item7_id}", response_model=Item7, response_model_exclude_unset=True)
+async def read_item(item7_id: str):
+    return items7[item7_id]
